@@ -6,11 +6,11 @@ use std::sync::mpsc::Sender;
 use actors::{Actor, ActorCell, ActorContext, ActorRef, Message};
 
 pub struct Complete {
-    complete: Box<Any + Send>,
+    complete: Box<dyn Any + Send>,
 }
 
 impl Complete {
-    pub fn new(complete: Box<Any + Send>) -> Complete {
+    pub fn new(complete: Box<dyn Any + Send>) -> Complete {
         Complete {
             complete: complete,
         }
@@ -19,14 +19,14 @@ impl Complete {
 
 #[derive(Clone)]
 pub enum Computation {
-    Forward(ActorRef, Arc<Fn(Box<Any + Send>, ActorCell, ActorRef) -> FutureState + Send + Sync>),
+    Forward(ActorRef, Arc<dyn Fn(Box<dyn Any + Send>, ActorCell, ActorRef) -> FutureState + Send + Sync>),
     // This is a terrible name.
-    Computation(Arc<Fn(Box<Any + Send>, ActorCell) -> FutureState + Send + Sync>),
+    Computation(Arc<dyn Fn(Box<dyn Any + Send>, ActorCell) -> FutureState + Send + Sync>),
 }
 
 pub enum FutureState {
     Uncompleted,
-    Computing(Box<Any + Send>),
+    Computing(Box<dyn Any + Send>),
     Extracted,
 }
 
@@ -80,15 +80,15 @@ impl Future {
 }
 
 impl Actor for Future {
-    fn receive(&self, message: Box<Any>, context: ActorCell) {
-        match Box::<Any>::downcast::<Computation>(message) {
+    fn receive(&self, message: Box<dyn Any>, context: ActorCell) {
+        match Box::<dyn Any>::downcast::<Computation>(message) {
             Ok(computation) => {
                 self.handle_computation(*computation, context);
             },
             Err(message) => {
                 // The double downgrade is ugly but we can't have an enum containing the two
                 // variants (see http://gamazeps.github.io/posts/robots_notes_7.html).
-                if let Ok(msg) = Box::<Any>::downcast::<Complete>(message) {
+                if let Ok(msg) = Box::<dyn Any>::downcast::<Complete>(message) {
                     // We need to free the lock on the state.
                     {
                         let mut state = self.state.lock().unwrap();
@@ -142,8 +142,8 @@ impl<T: Message> Actor for FutureExtractor<T> {
     }
 
     // It then receives the result and will send it through its channel.
-    fn receive(&self, message: Box<Any>, context: ActorCell) {
-        if let Ok(message) = Box::<Any>::downcast::<T>(message) {
+    fn receive(&self, message: Box<dyn Any>, context: ActorCell) {
+        if let Ok(message) = Box::<dyn Any>::downcast::<T>(message) {
             info!("The extractor {} received the type it wants to extract", context.actor_ref().path().logical_path());
             // FIXME(gamazeps): error handling.
             let _res = self.channel.lock().unwrap().send(*message);

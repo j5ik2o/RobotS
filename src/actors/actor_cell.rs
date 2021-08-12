@@ -14,7 +14,7 @@ use actors::name_resolver::ResolveRequest;
 use actors::props::ActorFactory;
 
 /// Closure to handle failure of an Actor.
-pub type FailureHandler = Arc<Fn(Failure, ActorCell) + Send + Sync>;
+pub type FailureHandler = Arc<dyn Fn(Failure, ActorCell) + Send + Sync>;
 
 enum Ref<T: ?Sized> {
     StrongRef(Arc<T>),
@@ -55,7 +55,7 @@ impl Clone for ActorCell {
 
 impl ActorCell {
     /// Creates a new ActorCell.
-    pub fn new( props: Arc<ActorFactory>,
+    pub fn new( props: Arc<dyn ActorFactory>,
                system: ActorSystem,
                father: ActorRef,
                path: Arc<ActorPath>)
@@ -104,7 +104,7 @@ pub trait ActorContext {
     fn actor_ref(&self) -> ActorRef;
 
     /// Spawns a child actor.
-    fn actor_of(&self, props: Arc<ActorFactory>, name: String) -> Result<ActorRef, &'static str>;
+    fn actor_of(&self, props: Arc<dyn ActorFactory>, name: String) -> Result<ActorRef, &'static str>;
 
     /// Sends a Message to the targeted ActorRef.
     fn tell<MessageTo: Message>(&self, to: ActorRef, message: MessageTo);
@@ -127,7 +127,7 @@ pub trait ActorContext {
 
     /// Sends the Future a closure to apply on its value, the value will be updated with the output
     /// of the closure.
-    fn do_computation<T: Message, F: Fn(Box<Any + Send>, ActorCell) -> T + Send + Sync + 'static>
+    fn do_computation<T: Message, F: Fn(Box<dyn Any + Send>, ActorCell) -> T + Send + Sync + 'static>
         (&self, future: ActorRef, closure: F);
 
     /// Requests the targeted actor to stop.
@@ -175,7 +175,7 @@ impl ActorContext for ActorCell {
         ActorRef::with_cell(self.clone(), self.path())
     }
 
-    fn actor_of(&self, props: Arc<ActorFactory>, name: String) -> Result<ActorRef, &'static str> {
+    fn actor_of(&self, props: Arc<dyn ActorFactory>, name: String) -> Result<ActorRef, &'static str> {
         let inner = unwrap_inner!(self.inner_cell, {
             panic!("Tried to create an actor from the context of a no longer existing actor");
         });
@@ -239,7 +239,7 @@ impl ActorContext for ActorCell {
 
     fn forward_result<T: Message>(&self, future: ActorRef, actor: ActorRef) {
         self.tell(future, Computation::Forward(actor, Arc::new(move |value, context, to| {
-            let value = Box::<Any + Send>::downcast::<T>(value).expect("Message of the wrong type");
+            let value = Box::<dyn Any + Send>::downcast::<T>(value).expect("Message of the wrong type");
             context.tell(to, *value);
             FutureState::Extracted
         })));
@@ -247,13 +247,13 @@ impl ActorContext for ActorCell {
 
     fn forward_result_to_future<T: Message>(&self, future: ActorRef, actor: ActorRef) {
         self.tell(future, Computation::Forward(actor, Arc::new(move |value, context, to| {
-            let value = Box::<Any + Send>::downcast::<T>(value).expect("Message of the wrong type");
+            let value = Box::<dyn Any + Send>::downcast::<T>(value).expect("Message of the wrong type");
             context.complete(to, *value);
             FutureState::Extracted
         })));
     }
 
-    fn do_computation<T: Message, F: Fn(Box<Any + Send>, ActorCell) -> T + Send + Sync + 'static>
+    fn do_computation<T: Message, F: Fn(Box<dyn Any + Send>, ActorCell) -> T + Send + Sync + 'static>
         (&self, future: ActorRef, closure: F) {
         self.tell(future, Computation::Computation(Arc::new(move |value, context| {
             let v = closure(value, context);
@@ -415,7 +415,7 @@ struct Envelope {
 /// Types of message that can be sent to an actor that will be treated normally.
 pub enum InnerMessage {
     /// Regular message.
-    Message(Box<Any + Send>),
+    Message(Box<dyn Any + Send>),
 
     /// Control messages.
     Control(ControlMessage),
@@ -461,7 +461,7 @@ impl Failure {
 struct InnerActorCell {
     mailbox: Mutex<VecDeque<Envelope>>,
     system_mailbox: Mutex<VecDeque<SystemMessage>>,
-    props: Arc<ActorFactory>,
+    props: Arc<dyn ActorFactory>,
     system: ActorSystem,
     path: Arc<ActorPath>,
     current_sender: Mutex<Option<ActorRef>>,
@@ -471,12 +471,12 @@ struct InnerActorCell {
     monitoring: Mutex<HashMap<Arc<ActorPath>, (ActorRef, FailureHandler)>>,
     actor_state: Arc<RwLock<ActorState>>,
     monitored_by: Mutex<Vec<ActorRef>>,
-    actor: RwLock<Arc<Actor>>,
+    actor: RwLock<Arc<dyn Actor>>,
 }
 
 impl InnerActorCell {
     /// Constructor.
-    fn new(props: Arc<ActorFactory>,
+    fn new(props: Arc<dyn ActorFactory>,
            system: ActorSystem,
            father: ActorRef,
            path: Arc<ActorPath>)

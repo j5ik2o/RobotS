@@ -11,7 +11,7 @@ struct Counter {
 }
 
 impl Actor for Counter {
-    fn receive(&self, _message: Box<Any>, _context: ActorCell) {
+    fn receive(&self, _message: Box<dyn Any>, _context: ActorCell) {
         let mut count = self.counter.lock().unwrap();
         *count += 1;
         println!("count: {}", *count);

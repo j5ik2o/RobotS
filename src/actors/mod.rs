@@ -53,7 +53,7 @@ pub trait Actor: Send + Sync + 'static {
     // done in order to have nicer code for the downcasts (indeed, I can't implement downcast
     // methods for Box<Message>).
     // Checks for sending data with the Message trait is done in the sending phase.
-    fn receive(&self, message: Box<Any>, context: ActorCell);
+    fn receive(&self, message: Box<dyn Any>, context: ActorCell);
 
     /// Method called before the Actor is started.
     fn pre_start(&self, _context: ActorCell) {}

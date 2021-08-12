@@ -162,7 +162,7 @@ impl ActorRef {
     /// Makes this ActorRef send a message to anther ActorRef.
     pub fn tell_to<MessageTo: Message>(&self, to: ActorRef, message: MessageTo) {
         info!("{} is sending a message to {}", self.path().logical_path(), to.path().logical_path());
-        let message: Box<Any + Send> = Box::new(message);
+        let message: Box<dyn Any + Send> = Box::new(message);
         to.receive(InnerMessage::Message(message), self.clone())
     }
 }

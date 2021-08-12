@@ -89,12 +89,12 @@ impl ActorSystem {
     }
 
     /// Spawns an Actor created using the Props given for the user.
-    pub fn actor_of(&self, props: Arc<ActorFactory>, name: String) -> ActorRef {
+    pub fn actor_of(&self, props: Arc<dyn ActorFactory>, name: String) -> ActorRef {
         self.inner.actor_of(props, name)
     }
 
     /// Spawns an Actor created using the Props given for the system.
-    pub fn system_actor_of(&self, props: Arc<ActorFactory>, name: String) -> ActorRef {
+    pub fn system_actor_of(&self, props: Arc<dyn ActorFactory>, name: String) -> ActorRef {
         self.inner.system_actor_of(props, name)
     }
 
@@ -255,7 +255,7 @@ impl InnerActorSystem {
     /// Spawns an Actor for the user with the given ActorFactory.
     ///
     /// This will be part of the user cator hierarchy.
-    fn actor_of(&self, props: Arc<ActorFactory>, name: String) -> ActorRef {
+    fn actor_of(&self, props: Arc<dyn ActorFactory>, name: String) -> ActorRef {
         // Not having the user actor in a Mutex is ok because the actor_of function already has
         // mutual exclusion, so we are in the clear.
         match self.user_actor.read().unwrap().clone() {
@@ -271,7 +271,7 @@ impl InnerActorSystem {
         }
     }
 
-    fn system_actor_of(&self, props: Arc<ActorFactory>, name: String) -> ActorRef {
+    fn system_actor_of(&self, props: Arc<dyn ActorFactory>, name: String) -> ActorRef {
         // Not having the user actor in a Mutex is ok because the actor_of function already has
         // mutual exclusion, so we are in the clear.
         match self.system_actor.read().unwrap().clone() {

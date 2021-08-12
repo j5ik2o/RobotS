@@ -31,8 +31,8 @@ pub struct NameResolver {
 }
 
 impl Actor for NameResolver {
-    fn receive(&self, message: Box<Any>, context: ActorCell) {
-        if let Ok(message) = Box::<Any>::downcast::<ResolveRequest>(message) {
+    fn receive(&self, message: Box<dyn Any>, context: ActorCell) {
+        if let Ok(message) = Box::<dyn Any>::downcast::<ResolveRequest>(message) {
             match *message {
                 ResolveRequest::Add(address) => {
                     let mut index = self.index.lock().unwrap();
